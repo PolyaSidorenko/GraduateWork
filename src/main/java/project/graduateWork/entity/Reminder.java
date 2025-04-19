@@ -23,4 +23,6 @@ public class Reminder {
 
     @ManyToOne
     private Task task;
+
+    private boolean sendReminder;
 }

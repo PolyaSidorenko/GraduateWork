@@ -1,5 +1,6 @@
 package project.graduateWork.bot;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -10,12 +11,13 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 @Component
 public class NoteBot extends TelegramLongPollingBot{
 
-    @Value("${telegram.bot.username}")
     public String botUsername;
-    @Value("${telegram.bot.token}")
     public String botToken;
 
-
+    public NoteBot(Dotenv dotenv) {
+        this.botUsername = dotenv.get("TELEGRAM_BOT_USERNAME");
+        this.botToken = dotenv.get("TELEGRAM_BOT_TOKEN");
+    }
     @Override
     public void onUpdateReceived(Update update) {
 
