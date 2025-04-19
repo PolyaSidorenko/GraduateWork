@@ -5,6 +5,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -14,6 +16,6 @@ import lombok.*;
 public class User {
     @Id
     private Long telegramId;
-    private String username;
+    private LocalDateTime createdAt;
 
 }
