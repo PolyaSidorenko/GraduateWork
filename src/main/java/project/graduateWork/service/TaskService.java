@@ -1,7 +1,7 @@
 package project.graduateWork.service;
 
 import lombok.RequiredArgsConstructor;
-import org.jvnet.hk2.annotations.Service;
+import org.springframework.stereotype.Service;
 import project.graduateWork.entity.Task;
 import project.graduateWork.entity.User;
 import project.graduateWork.repository.TaskRepository;
@@ -17,11 +17,10 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserService userService;
 
-    public Task createTask(Long telegramId, String title, String description, LocalDateTime localDateTime) {
+    public Task createTask(Long telegramId, String title, LocalDateTime localDateTime) {
         User user = userService.getOrCreateUser(telegramId);
         Task task = Task.builder()
                 .title(title)
-                .description(description)
                 .localDateTime(localDateTime)
                 .user(user)
                 .completed(false)

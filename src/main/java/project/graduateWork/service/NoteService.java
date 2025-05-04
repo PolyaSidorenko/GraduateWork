@@ -1,9 +1,8 @@
 package project.graduateWork.service;
 
 import lombok.RequiredArgsConstructor;
-import org.jvnet.hk2.annotations.Service;
+import org.springframework.stereotype.Service;
 import project.graduateWork.entity.Note;
-import project.graduateWork.entity.Task;
 import project.graduateWork.entity.User;
 import project.graduateWork.repository.NoteRepository;
 
@@ -17,11 +16,10 @@ public class NoteService {
     private final NoteRepository noteRepository;
     private final UserService userService;
 
-    public Note createNote(Long telegramId, String title, String description) {
+    public Note createNote(Long telegramId, String title) {
         User user = userService.getOrCreateUser(telegramId);
         Note note = Note.builder()
                 .title(title)
-                .description(description)
                 .localDateTime(LocalDateTime.now())
                 .user(user)
                 .build();
