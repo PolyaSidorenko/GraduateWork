@@ -9,5 +9,5 @@ import java.util.List;
 
 @Repository
 public interface ReminderRepository extends JpaRepository<Reminder, Long> {
-    List<Reminder> findByReminderDateAfterAndSendReminderFalse(LocalDateTime now);
+    List<Reminder> findByReminderDateBeforeAndSendReminderFalse(LocalDateTime now);
 }
