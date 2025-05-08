@@ -3,14 +3,16 @@ package project.graduateWork.bot;
 import io.github.cdimascio.dotenv.Dotenv;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import project.graduateWork.entity.Note;
 import project.graduateWork.entity.ReminderNotification;
 import project.graduateWork.entity.Task;
 import project.graduateWork.service.NoteService;
@@ -21,6 +23,7 @@ import project.graduateWork.service.UserService;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +32,6 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class NoteBot extends TelegramLongPollingBot{
-
 
     private final UserService userService;
     private final TaskService taskService;
@@ -50,11 +52,14 @@ public class NoteBot extends TelegramLongPollingBot{
 
     private void handleCommand(Long chatId, User telegramUser, String message) {
         switch (message) {
-            case "/start" -> handleStart(chatId, telegramUser);
-            case "/addTask" -> handleAddTask(chatId);
-            case "/addReminder" -> handleAddReminder(chatId);
-            case "/addNote" -> handleAddNote(chatId);
-            default -> sendMessage(chatId, "Неизвестная команда. Попробуй /addTask, /addReminder или /addNote.");
+            case "/start" -> {
+                handleStart(telegramUser);
+                sendMainMenu(chatId);
+            }
+            case "Добавить задачу" -> handleAddTask(chatId);
+            case "Добавить напоминание" -> handleAddReminder(chatId);
+            case "Добавить заметку" -> handleAddNote(chatId);
+            default -> sendMessage(chatId, "Неизвестная команда :(");
         }
     }
 
@@ -67,6 +72,14 @@ public class NoteBot extends TelegramLongPollingBot{
 
             BotState state = getUserState(chatId);
 
+            if (message.equals("Мои задачи")) {
+                handleAllTasks(chatId);
+                return;
+            } else if (message.equals("Мои заметки")) {
+                handleAllNotes(chatId);
+                return;
+            }
+
             switch (state) {
                 case WAITING_TASK,WAITING_TASK_DEADLINE-> handleTaskInput(chatId, message, state);
                 case WAITING_REMINDER -> handleReminderInput(chatId, message);
@@ -75,7 +88,7 @@ public class NoteBot extends TelegramLongPollingBot{
             }
 
         }
-        System.out.println("Пришло сообщение: " + update.getMessage().getText());
+        System.out.println("Пришло сообщение: " + update.getMessage().getText()); //для проверки правильности работы
     }
 
     public void sendMessage(Long chatId, String message) {
@@ -85,31 +98,29 @@ public class NoteBot extends TelegramLongPollingBot{
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
-            log.error("ошибка при отправке сообщения", e);
+            log.error("Ошибка при отправке сообщения", e);
         }
     }
 
-    private void handleStart (Long chatId, User telegramUser) {
+    private void handleStart (User telegramUser) {
         userService.getOrCreateUser(
                 telegramUser.getId()
         );
-        sendMessage(chatId, "Привет! Я бот для задач и напоминаний \nНапиши /addtask , " +
-                "чтобы добавить задачу");
     }
 
     private void handleAddTask(Long chatId) {
-        sendMessage(chatId, "Введите название задачи");
+        sendMessage(chatId, "Введи название задачи");
         setUserState(chatId, BotState.WAITING_TASK);
     }
 
     private void handleAddReminder(Long chatId) {
-        sendMessage(chatId, "Введите напоминание в формате:\n" +
-                "Текст; время в формате dd.MM.yyyy HH:mm");
+        sendMessage(chatId, "Введи напоминание в формате:\n" +
+                "Текст; время в формате дд.мм.гггг чч:мм (например: 26.04.2025 15:00)");
         setUserState(chatId, BotState.WAITING_REMINDER);
     }
 
     private void handleAddNote(Long chatId) {
-        sendMessage(chatId, "Введите текст заметки:");
+        sendMessage(chatId, "Введи текст заметки:");
         setUserState(chatId, BotState.WAITING_NOTE);
     }
 
@@ -119,7 +130,7 @@ public class NoteBot extends TelegramLongPollingBot{
             case WAITING_TASK -> {
                 taskNames.put(chatId, text);
                 userStates.put(chatId, BotState.WAITING_TASK_DEADLINE);
-                sendMessage(chatId, "Введи дедлайн в виде: dd.MM.yyyy HH:mm");
+                sendMessage(chatId, "Введи дедлайн в виде: дд.мм.гггг чч:мм (например: 26.04.2025 15:00)");
             }
             case WAITING_TASK_DEADLINE -> {
                 try {
@@ -143,7 +154,7 @@ public class NoteBot extends TelegramLongPollingBot{
         try {
             String[] parts = text.split(";");
             if (parts.length != 2) {
-                sendMessage(chatId, "Неверный формат :( Введи напоминание в формате:\nТекст; дата и время (dd.MM.yyyy HH:mm)");
+                sendMessage(chatId, "Неверный формат :( Введи напоминание в формате:\nТекст; дата и время (например 26.04.2025 15:00)");
                 return;
             }
 
@@ -155,7 +166,7 @@ public class NoteBot extends TelegramLongPollingBot{
 
             sendMessage(chatId, "Напоминание успешно добавлено :)");
         } catch (DateTimeParseException e) {
-            sendMessage(chatId, "Неверный формат даты, используй: dd.MM.yyyy HH:mm");
+            sendMessage(chatId, "Неверный формат даты, перепроверь пожалуйста вводимые данные");
         } finally {
             userStates.put(chatId, BotState.DEFAULT);
         }
@@ -167,15 +178,85 @@ public class NoteBot extends TelegramLongPollingBot{
                 sendMessage(chatId, "Текст заметки не может быть пустым");
                 return;
             }
-
-            Note note = noteService.createNote(chatId, text);
-
+            noteService.createNote(chatId, text);
             sendMessage(chatId, "Заметка сохранена :)");
         } catch (Exception e) {
             sendMessage(chatId, "Произошла ошибка при добавлении заметки...");
         } finally {
             userStates.put(chatId, BotState.DEFAULT);
         }
+    }
+
+    private void handleAllTasks(Long chatId) {
+        List<Task> tasks = taskService.getTaskByUser(chatId);
+
+        if (tasks.isEmpty()) {
+            sendMessage(chatId, "У тебя пока нет задач");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder("Твои задачи:\n");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+        for (Task task : tasks) {
+            sb.append(" - ").append(task.getTitle())
+                    .append(" / ").append(task.getLocalDateTime().format(formatter)).append("\n");
+        }
+        sendMessage(chatId, sb.toString());
+    }
+
+    private void handleAllNotes(Long chatId) {
+        List<project.graduateWork.entity.Note> notes = noteService.getNotesByUserId(chatId);
+        if (notes.isEmpty()) {
+            sendMessage(chatId, "У тебя пока нет заметок");
+            return;
+        }
+        StringBuilder sb = new StringBuilder("Твои заметки:\n");
+        for (project.graduateWork.entity.Note note : notes) {
+            sb.append(" - ").append(note.getTitle()).append("\n");
+        }
+        sendMessage(chatId, sb.toString());
+    }
+
+    public void sendMainMenu(Long chatId) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+
+        List<KeyboardRow> keyboard = getKeyboardRows();
+
+        keyboardMarkup.setKeyboard(keyboard);
+
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Выбери действие из списка ниже");
+        message.setReplyMarkup(keyboardMarkup);
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @NotNull
+    private static List<KeyboardRow> getKeyboardRows() {
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add("Добавить задачу");
+        row1.add("Мои задачи и напоминания");
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add("Добавить заметку");
+        row2.add("Мои заметки");
+
+        KeyboardRow row3 = new KeyboardRow();
+        row3.add("Добавить напоминание");
+        row3.add("Настройки");
+
+        keyboard.add(row1);
+        keyboard.add(row2);
+        keyboard.add(row3);
+        return keyboard;
     }
 
     @Scheduled(fixedRate = 60000)
