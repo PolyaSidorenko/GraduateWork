@@ -1,6 +1,7 @@
 package project.graduateWork.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import project.graduateWork.entity.Note;
 import project.graduateWork.entity.User;
@@ -8,10 +9,10 @@ import project.graduateWork.repository.NoteRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NoteService {
     private final NoteRepository noteRepository;
     private final UserService userService;
@@ -26,15 +27,11 @@ public class NoteService {
         return noteRepository.save(note);
     }
 
-    public List<Note> getTaskByUserId(Long telegramId) {
+    public List<Note> getNotesByUserId(Long telegramId) {
         return noteRepository.findAllByUserTelegramId(telegramId);
     }
 
-    public Optional<Note> getNoteById(Long noteId) {
-        return noteRepository.findById(noteId);
-    }
-
-    public void deleteNoteById(Long noteId) {
-        noteRepository.deleteById(noteId);
-    }
+//    public void deleteNoteById(Long noteId) {
+//        noteRepository.deleteById(noteId);
+//    }
 }
